@@ -1,7 +1,6 @@
 package com.syntax.android.maps.ui.droplist
 
 import android.arch.lifecycle.Observer
-import android.arch.lifecycle.ViewModelProvider
 import android.arch.lifecycle.ViewModelProviders
 import android.content.Context
 import android.content.Intent
@@ -11,9 +10,7 @@ import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.helper.ItemTouchHelper
 import android.view.View
 import com.syntax.android.maps.R
-import com.syntax.android.maps.app.Injection
 import com.syntax.android.maps.model.Drop
-import com.syntax.android.maps.viewmodel.ClearDropListener
 import com.syntax.android.maps.viewmodel.DropsViewModel
 import kotlinx.android.synthetic.main.activity_list.*
 
@@ -46,17 +43,12 @@ class DropListActivity : AppCompatActivity(), DropListAdapter.DropListAdapterLis
     override fun showDrops() {
         dropsViewModel.getDrops().observe(this, Observer<List<Drop>> {
             adapter.updateDrops(it ?: emptyList())
+            checkForEmptyState()
         })
     }
 
     override fun deleteDropAtPosition(drop: Drop, position: Int) {
-
-        dropsViewModel.clearDrops(drop, object : ClearDropListener {
-            override fun dropCleared(drop: Drop) {
-                adapter.removeDropAtPosition(position)
-                checkForEmptyState()
-            }
-        })
+        dropsViewModel.clearDrops(drop)
     }
 
     private fun checkForEmptyState() {

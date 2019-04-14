@@ -21,14 +21,10 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import com.syntax.android.maps.R
-import com.syntax.android.maps.app.Injection
 import com.syntax.android.maps.model.Drop
 import com.syntax.android.maps.model.MapPrefs
 import com.syntax.android.maps.ui.droplist.DropListActivity
-import com.syntax.android.maps.viewmodel.ClearAllDropListener
-import com.syntax.android.maps.viewmodel.DropInsertListener
 import com.syntax.android.maps.viewmodel.DropsViewModel
-import kotlinx.android.synthetic.main.activity_map.*
 
 
 class MapActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -230,23 +226,14 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
                         map.mapType = MapType.createMapType(MapPrefs.getMapType()).getGoogleMapType()
                     }
         }
-
         dialog.show()
     }
 
     private fun addDrop(latLng: LatLng, message: String, markerColor: Int) {
-        dropsViewModel.insert(Drop(latLng, message, markerColor = markerColor), object : DropInsertListener {
-            override fun dropInserted(drop: Drop) {
-                showDrop(drop)
-            }
-        })
+        dropsViewModel.insert(Drop(latLng, message, markerColor = markerColor))
     }
 
     private fun clearAllDrops() {
-        dropsViewModel.clearAllDrops(object :ClearAllDropListener{
-            override fun allDropCleared() {
-                map.clear()
-            }
-        })
+        dropsViewModel.clearAllDrops()
     }
 }
