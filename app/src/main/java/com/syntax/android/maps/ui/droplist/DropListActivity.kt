@@ -1,5 +1,8 @@
 package com.syntax.android.maps.ui.droplist
 
+import android.arch.lifecycle.Observer
+import android.arch.lifecycle.ViewModelProvider
+import android.arch.lifecycle.ViewModelProviders
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -10,48 +13,53 @@ import android.view.View
 import com.syntax.android.maps.R
 import com.syntax.android.maps.app.Injection
 import com.syntax.android.maps.model.Drop
+import com.syntax.android.maps.viewmodel.ClearDropListener
+import com.syntax.android.maps.viewmodel.DropsViewModel
 import kotlinx.android.synthetic.main.activity_list.*
 
-class DropListActivity : AppCompatActivity(), DropListContract.View, DropListAdapter.DropListAdapterListener {
+class DropListActivity : AppCompatActivity(), DropListAdapter.DropListAdapterListener {
 
-  override lateinit var presenter: DropListContract.Presenter
-  private val adapter = DropListAdapter(mutableListOf(), this)
+    companion object {
+        fun newIntent(context: Context) = Intent(context, DropListActivity::class.java)
+    }
 
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_list)
+    private lateinit var dropsViewModel: DropsViewModel
+    private val adapter = DropListAdapter(mutableListOf(), this)
 
-    title = getString(R.string.all_drops)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_list)
 
-    listRecyclerView.layoutManager = LinearLayoutManager(this)
-    listRecyclerView.adapter = adapter
+        title = getString(R.string.all_drops)
 
-    val itemTouchHelper = ItemTouchHelper(ItemTouchHelperCallback(adapter))
-    itemTouchHelper.attachToRecyclerView(listRecyclerView)
+        listRecyclerView.layoutManager = LinearLayoutManager(this)
+        listRecyclerView.adapter = adapter
 
-    presenter = Injection.provideDropListPresenter(this)
-    presenter.start()
-  }
+        val itemTouchHelper = ItemTouchHelper(ItemTouchHelperCallback(adapter))
+        itemTouchHelper.attachToRecyclerView(listRecyclerView)
 
-  override fun showDrops(drops: List<Drop>) {
-    adapter.updateDrops(drops)
-    checkForEmptyState()
-  }
+        dropsViewModel = ViewModelProviders.of(this).get(DropsViewModel::class.java)
 
-  override fun removeDropAtPosition(position: Int) {
-    adapter.removeDropAtPosition(position)
-    checkForEmptyState()
-  }
+        showDrops()
+    }
 
-  override fun deleteDropAtPosition(drop: Drop, position: Int) {
-    presenter.deleteDropAtPosition(drop, position)
-  }
+    override fun showDrops() {
+        dropsViewModel.getDrops().observe(this, Observer<List<Drop>> {
+            adapter.updateDrops(it ?: emptyList())
+        })
+    }
 
-  private fun checkForEmptyState() {
-    emptyState.visibility = if (adapter.itemCount == 0) View.VISIBLE else View.INVISIBLE
-  }
+    override fun deleteDropAtPosition(drop: Drop, position: Int) {
 
-  companion object {
-    fun newIntent(context: Context) = Intent(context, DropListActivity::class.java)
-  }
+        dropsViewModel.clearDrops(drop, object : ClearDropListener {
+            override fun dropCleared(drop: Drop) {
+                adapter.removeDropAtPosition(position)
+                checkForEmptyState()
+            }
+        })
+    }
+
+    private fun checkForEmptyState() {
+        tv_no_drops.visibility = if (adapter.itemCount == 0) View.VISIBLE else View.INVISIBLE
+    }
 }

@@ -51,5 +51,6 @@ class DropListAdapter(private val drops: MutableList<Drop>, private val listener
 
     interface DropListAdapterListener {
         fun deleteDropAtPosition(drop: Drop, position: Int)
+        fun showDrops()
     }
 }
