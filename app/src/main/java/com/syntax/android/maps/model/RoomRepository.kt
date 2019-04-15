@@ -1,6 +1,7 @@
 package com.syntax.android.maps.model
 
 import android.arch.lifecycle.LiveData
+import android.arch.persistence.room.Delete
 import android.os.AsyncTask
 import com.syntax.android.maps.app.DataDropApplication
 
@@ -20,14 +21,26 @@ class RoomRepository : DropRepository {
     override fun getDrops() = allDrops
 
     override fun clearDrop(drop: Drop) {
+        DeleteAsyncTask(dropDao).execute(drop)
     }
 
     override fun clearAllDrops() {
+        val dropArray = allDrops.value?.toTypedArray()
+        if (dropArray != null) {
+            DeleteAsyncTask(dropDao).execute(*dropArray)
+        }
     }
 
-    private class InsertAsyncTask internal constructor(private val dao: DropDao) :AsyncTask<Drop, Void, Void>() {
-        override fun doInBackground(vararg params: Drop): Void? {
-            dao.insert(params[0])
+    private class InsertAsyncTask internal constructor(private val dao: DropDao) : AsyncTask<Drop, Void, Void>() {
+        override fun doInBackground(vararg drop: Drop): Void? {
+            dao.insert(drop[0])
+            return null
+        }
+    }
+
+    private class DeleteAsyncTask internal constructor(private val dao: DropDao) : AsyncTask<Drop, Void, Void>() {
+        override fun doInBackground(vararg drop: Drop): Void? {
+            dao.clearDrops(*drop)
             return null
         }
     }

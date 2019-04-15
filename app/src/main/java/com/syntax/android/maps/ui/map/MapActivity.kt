@@ -23,13 +23,16 @@ import com.google.android.gms.maps.model.MarkerOptions
 import com.syntax.android.maps.R
 import com.syntax.android.maps.model.Drop
 import com.syntax.android.maps.model.MapPrefs
+import com.syntax.android.maps.model.MarkerColor
 import com.syntax.android.maps.ui.droplist.DropListActivity
 import com.syntax.android.maps.viewmodel.DropsViewModel
+import com.syntax.android.maps.viewmodel.MarkerColorsViewModel
 
 
 class MapActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var dropsViewModel: DropsViewModel
+    private lateinit var markerColorsViewModel: MarkerColorsViewModel
 
     private lateinit var map: GoogleMap
 
@@ -44,6 +47,7 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
 
         dropsViewModel = ViewModelProviders.of(this).get(DropsViewModel::class.java)
+        markerColorsViewModel = ViewModelProviders.of(this).get(MarkerColorsViewModel::class.java)
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
@@ -81,10 +85,6 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
         return super.onOptionsItemSelected(item)
     }
 
-    private fun showDrop(drop: Drop) {
-        placeMarkerOnMap(drop.latLng, drop.dropMessage, drop.markerColor)
-    }
-
     private fun showDrops(drops: List<Drop>) {
         map.clear()
         drops.forEach { drop ->
@@ -92,12 +92,11 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    private fun placeMarkerOnMap(location: LatLng, title: String, color: Int = 0) {
+    private fun placeMarkerOnMap(location: LatLng, title: String, markerColor: String) {
         val markerOptions = MarkerOptions().position(location)
         markerOptions.title(title)
 
-        val markerColor = MarkerColor.createMarkerColor(color)
-        markerOptions.icon(markerColor.getMarkerBitmapDescriptor())
+        markerOptions.icon(MarkerColor.getMarkerBitmapDescriptor(markerColor))
 
         map.addMarker(markerOptions)
     }
@@ -109,28 +108,32 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val rg = dialogView.findViewById(R.id.radio_group) as RadioGroup
 
-        var color = 0
+        var color = MarkerColor(MarkerColor.RED_COLOR)
 
-        for ((index, markerColor) in MarkerColor.values().withIndex()) {
-            val rb = RadioButton(this)
-            rb.text = markerColor.displayString
-            rb.setPadding(36, 36, 36, 36)
-            rg.addView(rb)
-            if (MapPrefs.getMarkerColor() == markerColor.displayString) {
-                rg.check(rb.id)
-                color = index
-            }
-        }
+        markerColorsViewModel.getMarkerColors().observe(this, Observer<List<MarkerColor>> { markerColors ->
+            if (markerColors != null) {
+                for (markerColor in markerColors) {
+                    val rb = RadioButton(this)
+                    rb.text = markerColor.displayString
+                    rb.setPadding(36, 36, 36, 36)
+                    rg.addView(rb)
+                    if (MapPrefs.getMarkerColor() == markerColor.displayString) {
+                        rg.check(rb.id)
+                        color = markerColor
+                    }
+                }
 
-        rg.setOnCheckedChangeListener { group, checkedId ->
-            val childCount = group.childCount
-            for (index in 0 until childCount) {
-                val button = group.getChildAt(index)
-                if (button.id == checkedId) {
-                    color = index
+                rg.setOnCheckedChangeListener { group, checkedId ->
+                    val childCount = group.childCount
+                    for (index in 0 until childCount) {
+                        val button = group.getChildAt(index)
+                        if (button.id == checkedId) {
+                            color = markerColors[index]
+                        }
+                    }
                 }
             }
-        }
+        })
 
         val messageEditText = dialogView.findViewById(R.id.messageEditText) as EditText
 
@@ -181,24 +184,31 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val rg = dialog.findViewById(R.id.radio_group) as RadioGroup
 
-        MarkerColor.values().forEach { markerColor ->
-            val rb = RadioButton(this)
-            rb.text = markerColor.displayString
-            rb.setPadding(48, 48, 48, 48)
-            rg.addView(rb)
-            if (MapPrefs.getMarkerColor() == markerColor.displayString) {
-                rg.check(rb.id)
+        markerColorsViewModel.getMarkerColors().observe(this, Observer<List<MarkerColor>> {
+            if (it != null) {
+                it.forEach {
+                    val rb = RadioButton(this)
+                    rb.text = it.displayString
+                    rb.setPadding(48, 48, 48, 48)
+                    rg.addView(rb)
+
+                    if (MapPrefs.getMarkerColor() == it.displayString) {
+                        rg.check(rb.id)
+                    }
+                }
+
+                rg.setOnCheckedChangeListener { group, checkedId ->
+                    val childCount = group.childCount
+                    (0 until childCount)
+                            .map { group.getChildAt(it) as RadioButton }
+                            .filter { it.id == checkedId }
+                            .forEach {
+                                MapPrefs.saveMapType(it.text.toString())
+                                map.mapType = MapType.createMapType(MapPrefs.getMapType()).getGoogleMapType()
+                            }
+                }
             }
-        }
-
-        rg.setOnCheckedChangeListener { group, checkedId ->
-            val childCount = group.childCount
-            (0 until childCount)
-                    .map { group.getChildAt(it) as RadioButton }
-                    .filter { it.id == checkedId }
-                    .forEach { MapPrefs.saveMarkerColor(it.text.toString()) }
-        }
-
+        })
         dialog.show()
     }
 
@@ -229,8 +239,8 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
         dialog.show()
     }
 
-    private fun addDrop(latLng: LatLng, message: String, markerColor: Int) {
-        dropsViewModel.insert(Drop(latLng, message, markerColor = markerColor))
+    private fun addDrop(latLng: LatLng, message: String, markerColor: MarkerColor) {
+        dropsViewModel.insert(Drop(latLng, message, markerColor = markerColor.displayString))
     }
 
     private fun clearAllDrops() {
